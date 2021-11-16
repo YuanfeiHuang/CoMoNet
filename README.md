@@ -9,6 +9,7 @@ Yuanfei Huang, Jie Li, Yanting Hu, Xinbo Gao* and Hua Huang, "Image-specific Con
 
 ![Pipeline of IKM](/Figs/Pipeline_IKM.png)
 
+
 ![Framework of UHDN](/Figs/Framework_UHDN.png)
 
 ## Dependenices
@@ -36,6 +37,13 @@ python main.py --train 'Train'
 ```bash
 python main.py --train 'Test'
 ```
+
+## Results
+### Quantitative Results (PSNR/SSIM)
+![Quantitative Results](/Figs/Performance_Table.png)
+
+### Qualitative Results
+![Fig.6](/Figs/Performance_Fig.png)
 
 ## Citation
 ```
