@@ -1,9 +1,9 @@
 # Image-specific Convolutional Kernel Modulation for Single Image Super-resolution
 This repository is for IKM introduced in the following paper
 
-Yuanfei Huang, Jie Li, Yanting Hu, Hua Huang and Xinbo Gao*, "Image-specific Convolutional Kernel Modulation for Single Image Super-resolution", arXiv preprint arXiv:xxxx(2021)
+Yuanfei Huang, Jie Li, Yanting Hu, Hua Huang and Xinbo Gao*, "Image-specific Convolutional Kernel Modulation for Single Image Super-resolution", arXiv preprint arXiv:2111.08362(2021)
 
-[arXiv](https://arxiv.org/abs/xxxxx)
+[arXiv](https://arxiv.org/abs/2111.08362)
 
 ## Overflow
 
@@ -47,17 +47,12 @@ python main.py --train 'Test'
 
 ## Citation
 ```
-@ARTICLE{2021arXiv  H,
-       author = {{Huang}, Yuanfei and {Li}, Jie and {Hu}, Yanting and {Huang}, Hua and {Gao}, Xinbo},
-        title = "{Image-specific Convolutional Kernel Modulation for Single Image Super-resolution}",
-      journal = {arXiv e-prints},
-     keywords = {},
-         year = 2021,
-        month = mar,
-          eid = {arXiv:},
-        pages = {arXiv:},
-archivePrefix = {arXiv},
-       eprint = {},
- primaryClass = {eess.IV},
+@misc{huang2021imagespecific,
+      title={Image-specific Convolutional Kernel Modulation for Single Image Super-resolution}, 
+      author={Yuanfei Huang and Jie Li and Yanting Hu and Xinbo Gao and Hua Huang},
+      year={2021},
+      eprint={2111.08362},
+      archivePrefix={arXiv},
+      primaryClass={eess.IV}
 }
 ```
