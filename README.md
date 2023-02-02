@@ -37,8 +37,5 @@ python main.py --train 'Test'
 ```
 
 ## Results
-### Quantitative Results (PSNR/SSIM)
-![Quantitative Results](/Figs/Performance_Table.png)
-
-### Qualitative Results
-![Fig.6](/Figs/Performance_Fig.png)
+![Visual Results](/Figs/Performance_1.png)
+![Visual Results](/Figs/Performance_2.png)
