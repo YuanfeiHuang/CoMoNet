@@ -4,16 +4,16 @@ import torch.nn.functional as F
 import numpy as np
 
 
-class IKM(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, group=1, bias=False, KA=False):
-        super(IKM, self).__init__()
+class CoMo(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, group=1, bias=False, use_CoMo=False):
+        super(CoMo, self).__init__()
 
         self.Conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, group, bias)
-        self.KA = KA
-        self.threshold = 0
+        self.use_CoMo = use_CoMo
+        self.threshold = nn.Parameter(torch.zeros(1))
 
     def forward(self, x):
-        if self.KA:
+        if self.use_CoMo:
             b, cin, w, h = x.size()
             CandConv2d = self.Conv2d.weight.data
             groups = self.Conv2d.groups
@@ -23,8 +23,8 @@ class IKM(nn.Module):
             # Average pooling
             attention = F.adaptive_avg_pool2d(attention, kw).view(b, cin, kw * kh)
             # Proportion transformation
-            attention = kw*kh*F.softmax(attention, dim=2) - 1
-            attention = 1 + torch.sigmoid(attention.unsqueeze(1).repeat(1, cout, 1, 1).contiguous().view(b * cout, cin, kw, kh))
+            attention = F.softmax(attention, dim=2) * kw * kh
+            attention = attention.unsqueeze(1).repeat(1, cout, 1, 1).contiguous().view(b * cout, cin, kw, kh)
             if self.Conv2d.weight.is_cuda:
                 attention = attention.cuda()
             self.Conv2d.weight.data = self.Conv2d.weight.data.repeat(b, 1, 1, 1)
@@ -95,10 +95,10 @@ class IKM(nn.Module):
         return y
 
 class dense_conv(nn.Module):
-    def __init__(self, in_feats, grow_rate, kernel=3, activation=nn.ReLU(inplace=True),bias=True, KA=False):
+    def __init__(self, in_feats, grow_rate, kernel=3, activation=nn.ReLU(inplace=True),bias=True, use_CoMo=False):
         super(dense_conv, self).__init__()
         layer = []
-        layer.append(IKM(in_channels=in_feats, out_channels=grow_rate, kernel_size=kernel, padding=1,bias=bias, KA=KA))
+        layer.append(CoMo(in_channels=in_feats, out_channels=grow_rate, kernel_size=kernel, padding=1,bias=bias, use_CoMo=use_CoMo))
         layer.append(activation)
         self.layer = nn.Sequential(*layer)
 
@@ -129,13 +129,13 @@ class dense_conv(nn.Module):
         return torch.cat((x, output), 1)
 
 class conv_block(nn.Module):
-    def __init__(self, in_feats, out_feats, kernel=3, dilation=1, bias=False, activation=nn.ReLU(inplace=True), KA=False):
+    def __init__(self, in_feats, out_feats, kernel=3, dilation=1, bias=False, activation=nn.ReLU(inplace=True), use_CoMo=False):
         super(conv_block, self).__init__()
 
         pad = int(dilation * (kernel - 1) / 2)
         block = []
-        block.append(IKM(in_channels=in_feats, out_channels=out_feats, kernel_size=kernel, padding=pad,
-                              dilation=dilation, bias=bias, KA=KA))
+        block.append(CoMo(in_channels=in_feats, out_channels=out_feats, kernel_size=kernel, padding=pad,
+                              dilation=dilation, bias=bias, use_CoMo=use_CoMo))
         block.append(activation)
         self.block = nn.Sequential(*block)
 
@@ -144,18 +144,18 @@ class conv_block(nn.Module):
         return output
 
 class res_block(nn.Module):
-    def __init__(self, in_feats, out_feats, kernel=3, dilation=1, bias=False, activation=nn.ReLU(inplace=True), KA=False):
+    def __init__(self, in_feats, out_feats, kernel=3, dilation=1, bias=False, activation=nn.ReLU(inplace=True), use_CoMo=False):
         super(res_block, self).__init__()
 
         pad = int(dilation * (kernel - 1) / 2)
         block = []
         for i in range(2):
             if i == 0:
-                block.append(IKM(in_channels=in_feats, out_channels=out_feats, kernel_size=kernel, padding=pad,
-                                        dilation=dilation, bias=bias, KA=KA))
+                block.append(CoMo(in_channels=in_feats, out_channels=out_feats, kernel_size=kernel, padding=pad,
+                                        dilation=dilation, bias=bias, use_CoMo=use_CoMo))
             else:
-                block.append(IKM(in_channels=in_feats, out_channels=out_feats, kernel_size=kernel, padding=pad,
-                                          dilation=dilation, bias=bias, KA=KA))
+                block.append(CoMo(in_channels=in_feats, out_channels=out_feats, kernel_size=kernel, padding=pad,
+                                          dilation=dilation, bias=bias, use_CoMo=use_CoMo))
             if i == 0: block.append(activation)
 
         self.block = nn.Sequential(*block)
@@ -165,25 +165,25 @@ class res_block(nn.Module):
         return output
 
 class dense_block(nn.Module):
-    def __init__(self, n_feats, grow_rate, n_units, activation, KA=False):
+    def __init__(self, n_feats, grow_rate, n_units, activation, use_CoMo=False):
         super(dense_block, self).__init__()
-        n_units = min(max(n_units, 4), 16)
+        # n_units = min(max(n_units, 4), 16)
 
         body = []
         for i in range(n_units):
-            body.append(dense_conv(n_feats+i*grow_rate, grow_rate, bias=False, activation=activation, KA=KA))
+            body.append(dense_conv(n_feats+i*grow_rate, grow_rate, bias=False, activation=activation, use_CoMo=use_CoMo))
 
         self.body = nn.Sequential(*body)
-        self.gate = nn.Sequential(IKM(n_feats+n_units*grow_rate, n_feats, 1, padding=0, bias=False, KA=False))
+        self.gate = nn.Sequential(CoMo(n_feats+n_units*grow_rate, n_feats, 1, padding=0, bias=True, use_CoMo=False))
 
     def forward(self, x):
         return self.gate(self.body(x))
 
 class CNN(nn.Module):
-    def __init__(self, n_feats, n_units, kernel, act, KA=False):
+    def __init__(self, n_feats, n_units, kernel, act, use_CoMo=False):
         super(CNN, self).__init__()
 
-        body = [conv_block(n_feats, n_feats, kernel, activation=act, KA=KA) for _ in range(n_units)]
+        body = [conv_block(n_feats, n_feats, kernel, activation=act, use_CoMo=use_CoMo) for _ in range(n_units)]
 
         self.body = nn.Sequential(*body)
 
@@ -194,10 +194,10 @@ class CNN(nn.Module):
         return output
 
 class ResNet(nn.Module):
-    def __init__(self, n_feats, n_units, act, KA=False):
+    def __init__(self, n_feats, n_units, act, use_CoMo=False):
         super(ResNet, self).__init__()
 
-        body = [res_block(n_feats, n_feats, activation=act, KA=KA) for _ in range(n_units)]
+        body = [res_block(n_feats, n_feats, activation=act, use_CoMo=use_CoMo) for _ in range(n_units)]
 
         self.body = nn.Sequential(*body)
 
@@ -208,27 +208,51 @@ class ResNet(nn.Module):
         return output
 
 class UHDB(nn.Module):
-    def __init__(self, n_feats, n_units, group_in_units, growth_rate, act, KA=False):
+    def __init__(self, n_feats, n_units, group_in_units, growth_rate, act, use_CoMo=False):
         super(UHDB, self).__init__()
 
-        body = [dense_block(n_feats, growth_rate, group_in_units[i], act, KA=KA) for i in range(n_units)]
-
-        self.body = nn.Sequential(*body)
+        self.body = nn.ModuleList(
+            [dense_block(n_feats, growth_rate, group_in_units[i], act, use_CoMo=use_CoMo) for i in range(n_units)]
+        )
+        # self.tail = nn.Conv2d(n_feats, n_feats, 3, 1, 1, bias=False)
+        # self.scaling = 0.1 if n_feats > 64 else 1
 
     def forward(self, x):
-
-        # U-Hourglass, case: n_units=6
+        # print(self.scaling)
+        # if len(self.body) == 4:
+        #     # U-Hourglass, case: n_units=6
+        #     x1 = self.body[0](x)
+        #     x2 = self.body[1](x1)
+        #     x3 = self.body[2](x2) + x1
+        #     y = self.body[3](x3) + x
+        # elif len(self.body) == 6:
+        #     # U-Hourglass, case: n_units=6
+        #     x1 = self.body[0](x)
+        #     x2 = self.body[1](x1)
+        #     x3 = self.body[2](x2)
+        #     x4 = self.body[3](x3) + x2
+        #     x5 = self.body[4](x4) + x1
+        #     y = self.body[5](x5) + x
+        # elif len(self.body) == 8:
+        #     x1 = self.body[0](x)
+        #     x2 = self.body[1](x1)
+        #     x3 = self.body[2](x2)
+        #     x4 = self.body[3](x3)
+        #     x5 = self.body[4](x4) + x3
+        #     x6 = self.body[5](x5) + x2
+        #     x7 = self.body[6](x6) + x1
+        #     y = self.body[7](x7) + x
         x1 = self.body[0](x)
         x2 = self.body[1](x1)
         x3 = self.body[2](x2)
-        x4 = self.body[3](x3)+x2
-        x5 = self.body[4](x4)+x1
-        y = self.body[5](x5) +x
-
+        x4 = self.body[3](x3) + x2
+        x5 = self.body[4](x4) + x1
+        y = self.body[5](x5) + x
         return y
 
+
 class UpScale(nn.Sequential):
-    def __init__(self, type, n_feats, scale, groups=1, bn=False, act=nn.ReLU(inplace=True), bias=False):
+    def __init__(self, type, n_feats, scale, bn=False, act=nn.ReLU(inplace=True), bias=False):
         layers = []
         if (scale & (scale - 1)) == 0:
             for _ in range(int(np.log2(scale))):
@@ -236,7 +260,9 @@ class UpScale(nn.Sequential):
                     layers.append(nn.ConvTranspose2d(n_feats, n_feats, 4, stride=2, padding=1, groups=1, bias=bias))
                 elif type == 'SubPixel':
                     layers.append(nn.Conv2d(in_channels=n_feats, out_channels=4 * n_feats, kernel_size=3, stride=1,
-                                            padding=1, groups=groups, bias=bias))
+                                            padding=1, groups=n_feats, bias=bias))
+                    layers.append(nn.Conv2d(in_channels=4 * n_feats, out_channels=4 * n_feats, kernel_size=1, stride=1,
+                                            padding=0, groups=1, bias=bias))
                     layers.append(nn.PixelShuffle(2))
                 else:
                     raise InterruptedError
@@ -244,7 +270,9 @@ class UpScale(nn.Sequential):
                 if act: layers.append(act)
         elif scale == 3:
             layers.append(nn.Conv2d(in_channels=n_feats, out_channels=9 * n_feats, kernel_size=3, stride=1,
-                                    padding=1, groups=groups, bias=bias))
+                                            padding=1, groups=n_feats, bias=bias))
+            layers.append(nn.Conv2d(in_channels=9 * n_feats, out_channels=9 * n_feats, kernel_size=1, stride=1,
+                                            padding=0, groups=1, bias=bias))
             layers.append(nn.PixelShuffle(3))
             if bn: layers.append(nn.BatchNorm2d(n_feats))
             if act: layers.append(act)
