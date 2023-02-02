@@ -1,4 +1,4 @@
-import os, torch, cv2
+import os, torch, cv2, shutil
 import numpy as np
 from torch.autograd import Variable
 import skimage.color as sc
@@ -143,6 +143,48 @@ def calc_PSNR(input, target, rgb_range, shave):
 
     return psnr.data.numpy()
 
+def test_selfensemble(model, input):
+    # TODO: to be tested
+    # 8 augmentations
+    # modified from https://github.com/sanghyun-son/EDSR-PyTorch/blob/master/src/model/__init__.py
+
+    def _transform(v, op):
+        # if self.precision != 'single': v = v.float()
+        v2np = v.data.cpu().numpy()
+        if op == 'v':
+            tfnp = v2np[:, :, :, ::-1].copy()
+        elif op == 'h':
+            tfnp = v2np[:, :, ::-1, :].copy()
+        elif op == 't':
+            tfnp = v2np.transpose((0, 1, 3, 2)).copy()
+
+        ret = torch.Tensor(tfnp).type_as(v)
+        # if self.precision == 'half': ret = ret.half()
+
+        return ret
+
+    # prepare augmented data
+    lr_list = [input]
+    for tf in 'v', 'h', 't':
+        lr_list.extend([_transform(t, tf) for t in lr_list])
+
+    # inference
+    sr_list = [model(aug) for aug in lr_list]
+
+    # merge results
+    for i in range(len(sr_list)):
+        if i > 3:
+            sr_list[i] = _transform(sr_list[i], 't')
+        if i % 4 > 1:
+            sr_list[i] = _transform(sr_list[i], 'h')
+        if (i % 4) % 2 == 1:
+            sr_list[i] = _transform(sr_list[i], 'v')
+    output = torch.cat(sr_list, dim=0)
+
+    output = output.mean(dim=0, keepdim=True)
+
+    return output
+
 
 def save_checkpoint(model, epoch, folder):
     model_path = folder + '/model_epoch_{:d}.pth'.format(epoch)
@@ -172,7 +214,7 @@ def load_checkpoint(resume, model, is_cuda, n_GPUs):
                     if new_checkpoint[name].shape == v.shape:
                         new_checkpoint[name] = v
                 else:
-                    if new_checkpoint[k].shape == v.shape:
+                    if (k in new_checkpoint) and new_checkpoint[k].shape == v.shape:
                         new_checkpoint[k] = v
         model.load_state_dict(new_checkpoint)
     else:
@@ -181,34 +223,32 @@ def load_checkpoint(resume, model, is_cuda, n_GPUs):
 
 
 def print_args(args):
-    if args.train == 'Train':
-        name = ''
-        if args.use_Att:
-            name += args.use_Att + '-'
-        name += args.net_type
-        if args.net_type == 'UDenseNet':
-            U = '-654456-'
-        elif 'DenseNet' in args.net_type:
-            U = '-5-'
+    if args.train.lower() == 'train':
+
+        if args.use_CoMo:
+            args.model_path = 'models/CoMo-L_X{}'.format(args.scale) + datetime.now().strftime("_%Y%m%d_%H%M")
         else:
-            U = ''
-        args.model_path = 'models/' + name + \
-                          '_X{:d}In{:d}BS{:d}LR{}'.format(args.scale, args.patch_size, args.batch_size, str(args.lr)) + \
-                          '_B{:d}U{:d}{}C{:d}G{:d}gp{:d}'.format(args.n_blocks, args.n_units, U, args.n_channels, args.growth_rate, args.groups) + \
-                          datetime.now().strftime("_%Y%m%d_%H%M")
-        if args.start_epoch > 0:
-            args.resume_SR = 'models/IKM-UDenseNet_X3In64BS24LR0.0002_B8U6-654456-C128G24_20211108_1422/SR Models/model_epoch_{:d}.pth'.format(args.start_epoch)
-        else:
-            args.resume_SR = 'models/IKM-UDenseNet-L2Loss_X4In64BS24LR0.0002_B8U6-654456-C128G24gp32_20211110_1143/SR Models/model_epoch_45.pth'
-            # args.resume_SR = 'models/IKM-UDenseNet-L2Loss_X3In64BS24LR0.0002_B8U6-654456-C128G24gp32_20211110_1143/SR Models/model_epoch_52.pth'
-        # args.resume_SR = 'checkpoints/IKM-UHDN_x{:d}.pth'.format(args.scale)
-        if not os.path.exists(args.model_path + '/SR Models'):
-            os.makedirs(args.model_path + '/SR Models')
-    elif args.train == 'Test':
-        if args.n_channels == 64:
-            args.model_path = 'models/IKM+UHDN_x{:d}'.format(args.scale)
+            args.model_path = 'models/UHDN_X{}'.format(args.scale) + datetime.now().strftime("_%Y%m%d_%H%M")
+
+        args.resume_SR = 'models/CoMo-L_x4.pth'
+        if not os.path.exists(args.model_path + '/Checkpoints'):
+            os.makedirs(args.model_path + '/Checkpoints')
+
+        if not os.path.exists(args.model_path + '/Code'):
+            os.makedirs(args.model_path + '/Code')
+
+        files = os.listdir('.')
+        for file in files:
+            if file[-3:] == '.py':
+                shutil.copyfile(file, args.model_path + '/Code/' + file)
+        shutil.copytree('src', args.model_path + '/Code/src', dirs_exist_ok=True)
+        shutil.copytree('data', args.model_path + '/Code/data', dirs_exist_ok=True)
+
+    elif args.train.lower() == 'test':
+        if args.n_channels == 48:
+            args.model_path = 'models/CoMo-S_x{:d}'.format(args.scale)
         elif args.n_channels == 128:
-            args.model_path = 'models/IKM+UHDN_L_x{:d}'.format(args.scale)
+            args.model_path = 'models/CoMo-L_x{:d}'.format(args.scale)
 
         if not os.path.exists(args.model_path + '/SR Results'):
             os.makedirs(args.model_path + '/SR Results')
