@@ -28,7 +28,7 @@ python main.py --train 'Train'
 ```
 
 ## Test
-1. Download models from [Google Drive](https://drive.google.com/drive/folders/10zIyGhTENJtfJytHoZHwf7QRrUsErl_C?usp=sharing) or [BaiduYun](https://pan.baidu.com/s/1cx_wCIXWYMQO02-78k9Gcw)(password: 06v3).
+1. Download models from 'models/'.
 
 2. Replace the test dataset path '../../Datasets/Test/' with your datasets.
 
