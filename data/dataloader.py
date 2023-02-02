@@ -36,18 +36,6 @@ class dataloader(data.Dataset):
                     if min(h, w) > self.args.patch_size:
                         self.img_hr.append(img_hr)
                         self.img_lr.append(img_lr)
-                    # if random.random() > 0.5:
-                    #     H, W, C = img_hr.shape
-                    #     scaleH, scaleW = np.random.uniform(0.5, 1, 2)
-                    #     outH = max(int(H*scaleH), self.args.patch_size*self.args.scale)
-                    #     outW = max(int(W*scaleW), self.args.patch_size*self.args.scale)
-                    #     outH = outH - outH % self.args.scale
-                    #     outW = outW - outW % self.args.scale
-                    #     img_hr = cv2.resize(img_hr, dsize=(outW, outH), interpolation=cv2.INTER_NEAREST)
-                    #     self.img_hr.append(img_hr)
-                    #     # img_hr = resize.imresize(img_as_float(img_hr), output_shape=(outH, outW), method='bicubic')
-                    #     img_lr = resize.imresize(img_as_float(img_hr), scalar_scale=1 / self.args.scale, method='bicubic')
-                    #     self.img_lr.append(resize.convertDouble2Byte(img_lr))
                     time.sleep(0.01)
                     pbar.update(1)
                     pbar.set_postfix(name=self.filepath_hr[idx].split('/')[-1], number=len(self.img_hr))
@@ -91,53 +79,6 @@ class dataloader(data.Dataset):
 
         img_lr, img_hr = common.set_channel([img_lr, img_hr], self.args.n_colors)
         img_lr, img_hr = common.get_patch([img_lr, img_hr], self.args.patch_size, self.args.scale)
-        # if random.random() > 0.5:
-        #     img_lr, img_hr = common.get_patch([img_lr, img_hr], self.args.patch_size, self.args.scale)
-        #
-        #     # scale = np.random.uniform(0.7, 1.05, 2)
-        #     # interpolation = random.choices([cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC],
-        #     #                                weights=[2, 1, 2], k=1)[0]
-        #     factor = np.array([random.uniform(0.9, 1.1), random.uniform(0.5, 1.5), random.uniform(0.75, 1.25)]).reshape((1, 1, 3))
-        #     # plt.figure(dpi=300)
-        #     # plt.subplot(2, 3, 1)
-        #     # plt.imshow(img_lr)
-        #     # plt.title('H={:.2f}'.format(factor[0,0,0]))
-        #     # plt.subplot(2, 3, 4)
-        #     # plt.imshow(img_hr)
-        #     # plt.title(str(interpolation))
-        #     # img_lr = cv2.resize(img_lr, (int(img_lr.shape[1] * scale[0]), int(img_lr.shape[0] * scale[1])), interpolation=interpolation)
-        #     # img_hr = cv2.resize(img_hr, (int(img_hr.shape[1] * scale[0]), int(img_hr.shape[0] * scale[1])), interpolation=interpolation)
-        #     # h, w, c = img_lr.shape
-        #     # ix = h // 2 - self.args.patch_size // 2
-        #     # iy = w // 2 - self.args.patch_size // 2
-        #     # img_lr = img_lr[ix:(ix+self.args.patch_size), iy:(iy+self.args.patch_size), :]
-        #     # tx, ty = ix*self.args.scale, iy*self.args.scale
-        #     # img_hr = img_hr[tx:(tx+self.args.scale * self.args.patch_size), ty:(ty+self.args.scale*self.args.patch_size), :]
-        #
-        #     # plt.subplot(2, 3, 2)
-        #     # plt.imshow(img_lr)
-        #     # plt.title('S={:.2f}'.format(factor[0,0,1]))
-        #     # plt.subplot(2, 3, 5)
-        #     # plt.imshow(img_hr)
-        #     # plt.title('Scale={:.2f}x{:.2f}'.format(scale[0], scale[1]))
-        #
-        #     img_lr = cv2.cvtColor(img_lr, cv2.COLOR_RGB2HSV) * factor
-        #     img_hr = cv2.cvtColor(img_hr, cv2.COLOR_RGB2HSV) * factor
-        #     img_lr[:, :, 0] = img_lr[:, :, 0] % 180
-        #     img_hr[:, :, 0] = img_hr[:, :, 0] % 180
-        #     img_lr[:, :, 1:] = img_lr[:, :, 1:].clip(0, 255)
-        #     img_hr[:, :, 1:] = img_hr[:, :, 1:].clip(0, 255)
-        #     img_lr = cv2.cvtColor(img_lr.astype(np.uint8), cv2.COLOR_HSV2RGB)
-        #     img_hr = cv2.cvtColor(img_hr.astype(np.uint8), cv2.COLOR_HSV2RGB)
-        #     # plt.subplot(2, 3, 3)
-        #     # plt.imshow(img_lr)
-        #     # plt.title('V={:.2f}'.format(factor[0, 0, 2]))
-        #     # plt.subplot(2, 3, 6)
-        #     # plt.imshow(img_hr)
-        #     # plt.show()
-        # else:
-        #     img_lr, img_hr = common.get_patch([img_lr, img_hr], self.args.patch_size, self.args.scale)
-
         flag_aug = random.randint(0, 7)
         img_lr, img_hr = common.augment(img_lr, flag_aug), common.augment(img_hr, flag_aug)
         img_lr = common.np2Tensor(img_lr, self.args.value_range)
