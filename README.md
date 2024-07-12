@@ -1,7 +1,7 @@
 # Deep Convolution Modulation for Image Super-resolution
 This repository is for CoMoNet introduced in the following paper
 
-Yuanfei Huang, Jie Li, Yanting Hu, Hua Huang and Xinbo Gao, "Deep Convolution Modulation for Image Super-resolution", submitted.
+Yuanfei Huang, Jie Li, Yanting Hu, Hua Huang and Xinbo Gao, "Deep Convolution Modulation for Image Super-resolution", IEEE Transactions on Circuits and Systems for Video Technology, vol. 34, no. 5, pp. 3647-3662, 2024. [paper](https://ieeexplore.ieee.org/document/10256095)
 
 ## Overflow
 
@@ -39,3 +39,15 @@ python main.py --train 'Test'
 ## Results
 ![Visual Results](/Figs/Performance_1.png)
 ![Visual Results](/Figs/Performance_2.png)
+
+## Citation
+```
+@ARTICLE{10256095,
+  author={Huang, Yuanfei and Li, Jie and Hu, Yanting and Huang, Hua and Gao, Xinbo},
+  journal={IEEE Transactions on Circuits and Systems for Video Technology}, 
+  title={Deep Convolution Modulation for Image Super-Resolution}, 
+  year={2024},
+  volume={34},
+  number={5},
+  pages={3647-3662}
+```
