@@ -1,4 +1,4 @@
-# Deep Convolution Modulation for Image Super-resolution
+# Deep Convolution Modulation for Image Super-resolution (TCSVT 2023)
 This repository is for CoMoNet introduced in the following paper
 
 Yuanfei Huang, Jie Li, Yanting Hu, Hua Huang and Xinbo Gao, "Deep Convolution Modulation for Image Super-resolution", IEEE Transactions on Circuits and Systems for Video Technology, vol. 34, no. 5, pp. 3647-3662, 2024. [paper](https://ieeexplore.ieee.org/document/10256095)
